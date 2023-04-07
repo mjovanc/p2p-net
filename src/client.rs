@@ -4,7 +4,9 @@ pub(crate) fn send_message(message: String) {
     println!("Sending message: {}", message);
 
     let client = Client::new();
-    let res = client.get("http://localhost:8477").send();
+    let res = client.post("http://localhost:8477")
+        .body(message)
+        .send();
 
     match res {
         Ok(response) => {
