@@ -1,5 +1,5 @@
 use std::net::{TcpListener, TcpStream};
 
-fn start() {
-    println!("Hello, world!");
+pub(crate) fn start() {
+    println!("Starting server...");
 }
