@@ -1,29 +1,52 @@
-use std::io::Read;
+use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
 
-pub(crate) fn start() {
-    println!("Starting server...");
+fn handle_p2p_connection(mut stream: TcpStream) {
+    println!("New P2P connection from {}", stream.peer_addr().unwrap());
 
-    const HOST : &str ="127.0.0.1";
-    const PORT : &str ="8477";
-
-    // concatenating host address and port to create final endpoint
-    let end_point : String = HOST.to_owned() + ":" +  PORT;
-
-    // creating tcp listener at our end point
-    let listener = TcpListener::bind(end_point).unwrap();
-    println!("Web server is listening at port {}",PORT);
-
-    // conneting to any incoming connections
-    for stream in listener.incoming() {
-        let _stream = stream.unwrap();
-        // call function to process any incomming connections
-        handle_connection(_stream);
+    let mut buf = [0; 1024];
+    match stream.read(&mut buf) {
+        Ok(n) if n > 0 => {
+            let message = String::from_utf8_lossy(&buf[..n]);
+            match message.trim() {
+                "ping" => {
+                    println!("Received ping from {}", stream.peer_addr().unwrap());
+                    // Send a pong message back to the peer
+                    let pong = "pong\n".as_bytes();
+                    stream.write_all(pong).unwrap();
+                },
+                _ => {
+                    println!("Invalid message from {}: {:?}", stream.peer_addr().unwrap(), message);
+                }
+            }
+        },
+        Ok(_) => {
+            println!("Empty message from {}", stream.peer_addr().unwrap());
+        },
+        Err(e) => {
+            println!("Error reading from {}: {}", stream.peer_addr().unwrap(), e);
+        }
     }
 }
 
-fn handle_connection(mut stream: TcpStream) {
-    let mut buffer = [0; 1024];
-    stream.read(&mut buffer).unwrap();
-    println!("Request: {}", String::from_utf8_lossy(&buffer[..]));
+pub(crate) fn start_p2p_server() {
+    println!("Starting P2P server...");
+
+    let listener = TcpListener::bind("127.0.0.1:7878").unwrap();
+    println!("P2P server is listening at port 7878");
+
+    // listen for incoming P2P connections indefinitely
+    for stream in listener.incoming() {
+        match stream {
+            Ok(stream) => {
+                // spawn a new thread to handle the incoming P2P connection
+                std::thread::spawn(|| {
+                    handle_p2p_connection(stream);
+                });
+            },
+            Err(e) => {
+                println!("Error accepting P2P connection: {}", e);
+            }
+        }
+    }
 }
